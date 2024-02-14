@@ -2,27 +2,20 @@ import torch
 import os
 import random
 import traceback
-import matplotlib.pyplot as plt
-import numpy as np
-import torch.nn as nn
 
 from torch.utils.tensorboard import SummaryWriter
-from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 from monai.data import DataLoader, CacheDataset, Dataset
 from monai.losses import DiceLoss, DiceCELoss
 from monai.metrics import DiceMetric
 from monai.data.utils import decollate_batch
 from monai.inferers import sliding_window_inference
-from monai.networks.nets import UNet, UNETR
+from monai.networks.nets import UNet
 from monai.visualize import plot_2d_or_3d_image
-from monai.transforms import (ToTensord, Compose, LoadImaged, ToTensord, Spacingd, Transposed, Flipd, EnsureChannelFirstd, 
-                              EnsureType, Compose, AsDiscrete, RandSpatialCropSamplesd, RandFlipd, RandShiftIntensityd, SpatialPadd,
-                              RandGaussianNoised, ThresholdIntensityd)
+from monai.transforms import (ToTensord, Compose, LoadImaged, ToTensord, Spacingd, Transposed, Flipd, EnsureType, Compose, AsDiscrete, 
+                              RandSpatialCropSamplesd, RandFlipd, RandShiftIntensityd, SpatialPadd, RandGaussianNoised, ThresholdIntensityd)
 from utils import *
 from pathlib import Path
 
-
-# from tqdm import tqdm # can be added if not running in the background
 
 def save_checkpoint(model_state_dict, 
                     optimizer_seg_state_dict, 
@@ -72,34 +65,34 @@ def train_non_contrast(config, log_path, logger):
                             ConvertToMultiChannelMaskd(keys=train_transforms_config['ConvertToMultiChannelMaskd']['keys']), 
                             SpatialPadd(keys=train_transforms_config['SpatialPadd']['keys'], 
                                         spatial_size=train_transforms_config['SpatialPadd']['spatial_size']),
-                            # RandSpatialCropSamplesd(keys=train_transforms_config['RandSpatialCropSamplesd']['keys'], 
-                            #                         roi_size=train_transforms_config['RandSpatialCropSamplesd']['roi_size'], 
-                            #                         num_samples=train_transforms_config['RandSpatialCropSamplesd']['num_samples'], 
-                            #                         random_size=train_transforms_config['RandSpatialCropSamplesd']['random_size']),
-                            # RandFlipd(keys=train_transforms_config['RandFlipd_x']['keys'], 
-                            #           prob=train_transforms_config['RandFlipd_x']['prob'], 
-                            #           spatial_axis=train_transforms_config['RandFlipd_x']['spatial_axis']), 
-                            # RandFlipd(keys=train_transforms_config['RandFlipd_y']['keys'], 
-                            #           prob=train_transforms_config['RandFlipd_y']['prob'], 
-                            #           spatial_axis=train_transforms_config['RandFlipd_y']['spatial_axis']), 
-                            # RandFlipd(keys=train_transforms_config['RandFlipd_z']['keys'], 
-                            #           prob=train_transforms_config['RandFlipd_z']['prob'], 
-                            #           spatial_axis=train_transforms_config['RandFlipd_z']['spatial_axis']), 
-                            # RandShiftIntensityd(keys=train_transforms_config['RandShiftIntensityd']['keys'], 
-                            #                     offsets=train_transforms_config['RandShiftIntensityd']['offsets'], 
-                            #                     prob=train_transforms_config['RandShiftIntensityd']['prob']),
-                            # RandGaussianNoised(keys=train_transforms_config['RandGaussianNoised']['keys'], 
-                            #                    prob=train_transforms_config['RandGaussianNoised']['prob'], 
-                            #                    mean=train_transforms_config['RandGaussianNoised']['mean'], 
-                            #                    std=train_transforms_config['RandGaussianNoised']['std']), 
-                            # ThresholdIntensityd(keys=train_transforms_config['ThresholdIntensityd_clip_upper']['keys'], 
-                            #                     threshold=train_transforms_config['ThresholdIntensityd_clip_upper']['threshold'], 
-                            #                     above=train_transforms_config['ThresholdIntensityd_clip_upper']['above'], 
-                            #                     cval=train_transforms_config['ThresholdIntensityd_clip_upper']['cval']),
-                            # ThresholdIntensityd(keys=train_transforms_config['ThresholdIntensityd_clip_lower']['keys'], 
-                            #                     threshold=train_transforms_config['ThresholdIntensityd_clip_lower']['threshold'], 
-                            #                     above=train_transforms_config['ThresholdIntensityd_clip_lower']['above'], 
-                            #                     cval=train_transforms_config['ThresholdIntensityd_clip_lower']['cval']),
+                            RandSpatialCropSamplesd(keys=train_transforms_config['RandSpatialCropSamplesd']['keys'], 
+                                                    roi_size=train_transforms_config['RandSpatialCropSamplesd']['roi_size'], 
+                                                    num_samples=train_transforms_config['RandSpatialCropSamplesd']['num_samples'], 
+                                                    random_size=train_transforms_config['RandSpatialCropSamplesd']['random_size']),
+                            RandFlipd(keys=train_transforms_config['RandFlipd_x']['keys'], 
+                                      prob=train_transforms_config['RandFlipd_x']['prob'], 
+                                      spatial_axis=train_transforms_config['RandFlipd_x']['spatial_axis']), 
+                            RandFlipd(keys=train_transforms_config['RandFlipd_y']['keys'], 
+                                      prob=train_transforms_config['RandFlipd_y']['prob'], 
+                                      spatial_axis=train_transforms_config['RandFlipd_y']['spatial_axis']), 
+                            RandFlipd(keys=train_transforms_config['RandFlipd_z']['keys'], 
+                                      prob=train_transforms_config['RandFlipd_z']['prob'], 
+                                      spatial_axis=train_transforms_config['RandFlipd_z']['spatial_axis']), 
+                            RandShiftIntensityd(keys=train_transforms_config['RandShiftIntensityd']['keys'], 
+                                                offsets=train_transforms_config['RandShiftIntensityd']['offsets'], 
+                                                prob=train_transforms_config['RandShiftIntensityd']['prob']),
+                            RandGaussianNoised(keys=train_transforms_config['RandGaussianNoised']['keys'], 
+                                               prob=train_transforms_config['RandGaussianNoised']['prob'], 
+                                               mean=train_transforms_config['RandGaussianNoised']['mean'], 
+                                               std=train_transforms_config['RandGaussianNoised']['std']), 
+                            ThresholdIntensityd(keys=train_transforms_config['ThresholdIntensityd_clip_upper']['keys'], 
+                                                threshold=train_transforms_config['ThresholdIntensityd_clip_upper']['threshold'], 
+                                                above=train_transforms_config['ThresholdIntensityd_clip_upper']['above'], 
+                                                cval=train_transforms_config['ThresholdIntensityd_clip_upper']['cval']),
+                            ThresholdIntensityd(keys=train_transforms_config['ThresholdIntensityd_clip_lower']['keys'], 
+                                                threshold=train_transforms_config['ThresholdIntensityd_clip_lower']['threshold'], 
+                                                above=train_transforms_config['ThresholdIntensityd_clip_lower']['above'], 
+                                                cval=train_transforms_config['ThresholdIntensityd_clip_lower']['cval']),
                             ToTensord(keys=train_transforms_config['ToTensord']['keys'])
                         ])
 
@@ -112,7 +105,7 @@ def train_non_contrast(config, log_path, logger):
                                      pixdim=eval_transforms_config['Spacingd_im']['pixdim']),
                             Spacingd(keys=eval_transforms_config['Spacingd_seg']['keys'], 
                                      pixdim=eval_transforms_config['Spacingd_seg']['pixdim'], mode=eval_transforms_config['Spacingd_seg']['mode']),
-                            Flipd(keys=train_transforms_config['Flipd']['keys'], spatial_axis=train_transforms_config['Flipd']['spatial_axis']),
+                            Flipd(keys=eval_transforms_config['Flipd']['keys'], spatial_axis=eval_transforms_config['Flipd']['spatial_axis']),
                             Transposed(keys=eval_transforms_config['Transposed_im']['keys'], 
                                        indices=eval_transforms_config['Transposed_im']['indices']),
                             Transposed(keys=eval_transforms_config['Transposed_seg']['keys'], 
@@ -128,12 +121,11 @@ def train_non_contrast(config, log_path, logger):
                     for im, right_seg, left_seg in zip(image_files, right_seg_files, left_seg_files)]
     
     cross_val_split = config['cross_val_split'] if 'cross_val_split' in config.keys() else key_error_raiser("Cross validation split not defined in config.")
-    
     random.shuffle(datadict)
+
     train_dict = datadict[:int(len(datadict) * cross_val_split)]
     val_dict = datadict[int(len(datadict) * cross_val_split):]
-    train_dict = datadict 
-    val_dict = datadict 
+
     logger.info('Dataset length {} '. format(len(datadict)))
     logger.info('Train/Val split {} , {}'. format(train_dict, val_dict))
 
@@ -158,37 +150,8 @@ def train_non_contrast(config, log_path, logger):
                             shuffle=config['dataloader']['shuffle'],
                             num_workers=config['dataloader']['num_workers'])
 
-    # while 1:
-    #     for i, sample in enumerate(train_loader):
-    #         print(i)
-    #         # # How to user IndexTracker
-    #         fig, ax = plt.subplots(1, 1)
-    #         X = np.hstack((sample['image'][0,0].detach().cpu().numpy(), sample['segmentation'][0,0].detach().cpu().numpy(),
-    #                         sample['segmentation'][0,1].detach().cpu().numpy(), sample['segmentation'][0,2].detach().cpu().numpy()))
-    #         tracker = IndexTracker(ax, X, vmin=np.amin(X), vmax=np.amax(X))
-    #         fig.canvas.mpl_connect('scroll_event', tracker.on_scroll)
-    #         plt.show()
-    # exit(0)
-
-    while 1:
-            for i, sample in enumerate(train_loader):
-                print(i)
-                # # How to user IndexTracker
-                fig, ax = plt.subplots(1, 1)
-                X = np.hstack((sample['image'][0,0].detach().cpu().numpy(), sample['segmentation'][0,1].detach().cpu().numpy()+sample['segmentation'][0,2].detach().cpu().numpy()))
-                tracker = IndexTracker(ax, X, vmin=np.amin(X), vmax=np.amax(X))
-                fig.canvas.mpl_connect('scroll_event', tracker.on_scroll)
-                plt.show()
-    exit(0)
-
-
     # initialize model
-    if config['model']['name'] == 'UNETR': 
-        model = UNETR(in_channels=config['model']['in_channels'], out_channels=config['model']['out_channels'], img_size=config['model']['img_size'], 
-                      feature_size=config['model']['feature_size'], hidden_size=config['model']['hidden_size'], mlp_dim=config['model']['mlp_dim'], 
-                      num_heads=config['model']['num_heads'], pos_embed=config['model']['pos_embed'], norm_name=config['model']['norm_name'], 
-                      conv_block=config['model']['conv_block'], res_block=config['model']['res_block'], dropout_rate=config['model']['dropout_rate'])
-    elif config['model']['name'] == 'UNet':
+    if config['model']['name'] == 'UNet':
         model = UNet(spatial_dims=config['model']['spatial_dims'], in_channels=config['model']['in_channels'], out_channels=config['model']['out_channels'],
                      kernel_size=config['model']['kernel_size'], up_kernel_size=config['model']['up_kernel_size'], channels=config['model']['channels'],
                      strides=config['model']['strides'], norm=config['model']['norm'], dropout=config['model']['dropout'], 
@@ -207,14 +170,6 @@ def train_non_contrast(config, log_path, logger):
     else: 
         raise Exception("No optimizer has been defined in the config file")
     logger.info('Training with optimizer {} '.format(optimizer))
-
-    # initialize scheduler
-    if 'scheduler' in config.keys():
-        if config['scheduler']['name'] == 'CosineAnnealingWarmRestarts':
-            scheduler = CosineAnnealingWarmRestarts(optimizer=optimizer, T_0=config['scheduler']['T_0'], eta_min=config['scheduler']['eta_min'])
-            logger.info('Scheduler {}'.format(scheduler))
-    else:
-        logger.info('No scheduler for the learning rate has been defined')
 
     # initialize loss
     if 'loss' in config.keys():
@@ -271,12 +226,11 @@ def train_non_contrast(config, log_path, logger):
                 print('Caught the following exception {}'.format(traceback.format_exc()))
             losses.append(loss_s.item())
         metric = train_metric.aggregate().item()
-        'scheduler' in config.keys() and scheduler.step()
 
-        # if metric > 0.5:
-        plot_2d_or_3d_image(data=image, step=0, writer=writer, frame_dim=-1, tag=f'image at epoch: {epoch}')
-        plot_2d_or_3d_image(data=segmentation, step=0, writer=writer, frame_dim=-1, tag=f'label at epoch: {epoch}')
-        plot_2d_or_3d_image(data=out, step=0, writer=writer, frame_dim=-1, tag=f'model output at epoch: {epoch}')
+        if metric > 0.5 and (epoch % 100) == 0:
+            plot_2d_or_3d_image(data=image, step=0, writer=writer, frame_dim=-1, tag=f'image at epoch: {epoch}')
+            plot_2d_or_3d_image(data=segmentation, step=0, writer=writer, frame_dim=-1, tag=f'label at epoch: {epoch}')
+            plot_2d_or_3d_image(data=out, step=0, writer=writer, frame_dim=-1, tag=f'model output at epoch: {epoch}')
 
         writer.add_scalar(tag='Loss/train', scalar_value=losses[-1], global_step=epoch)
         logger.info(f'Epoch {epoch} of {config["epochs"]} with Train loss {losses[-1]}')
@@ -293,7 +247,7 @@ def train_non_contrast(config, log_path, logger):
                     val_image, val_segm = val_data['image'].float().to(device=torch.device(config['device'])), val_data['segmentation'].float().to(device=torch.device(config['device']))
 
                     try:
-                        val_out = sliding_window_inference(inputs=val_image, roi_size=(96, 96, 96), sw_batch_size=16, predictor=model)
+                        val_out = sliding_window_inference(inputs=val_image, roi_size=(96, 96, 96), sw_batch_size=24, predictor=model)
 
                         loss_s = loss(val_out, val_segm)
 
@@ -311,15 +265,16 @@ def train_non_contrast(config, log_path, logger):
                 writer.add_scalar(tag='Loss/eval', scalar_value=val_losses[-1], global_step=epoch)
                 logger.info(f'Eval loss {val_losses[-1]}')
                 logger.info(f'Eval metric {metric}')
-                logger.info(f'-------------- Finished epoch {epoch} -------------') 
                 val_metric.reset()
 
                 # save models
-                if validation_metrics[-1] == max(validation_metrics):
+                if validation_metrics[-1] > 0.90:
                     if not os.path.exists(log_path.joinpath(config['logs']).joinpath('models')):
                         os.makedirs(log_path.joinpath(config['logs']).joinpath('models'))
                     logger.info(f'Saving model at epoch {epoch}')
                     save_checkpoint(model_state_dict=model.state_dict(), optimizer_seg_state_dict=optimizer.state_dict(), 
-                                    save_path=log_path.joinpath(config['logs']).joinpath('models/model.tar'.format(epoch)))
+                                    save_path=log_path.joinpath(config['logs']).joinpath('models/model{}.tar'.format(epoch)))
+                
+                logger.info(f'-------------- Finished epoch {epoch} -------------')
 
     return model  
