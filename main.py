@@ -6,20 +6,18 @@ import logging.config
 import numpy as np
 import random
 import yaml
+import warnings
 
 from monai.utils import set_determinism
 from monai.config.deviceconfig import print_config
 from utils import evaluate_true_false
-from train import train
+from train_contrast import train_contrast
 from train_non_contrast import train_non_contrast
 from pathlib import Path
 
-import warnings
 warnings.filterwarnings("ignore")
-
 torch.cuda.empty_cache()
 CUDA_LAUNCH_BLOCKING=1
-
 
 def get_logger(file, level: str=logging.INFO):
     # initialize logger
@@ -45,7 +43,7 @@ if __name__ == "__main__":
     print_config()
 
     # parse cmd args to get config file
-    parser = argparse.ArgumentParser(description='Command-line arguments for 3d UNet Training')
+    parser = argparse.ArgumentParser(description='Command-line arguments for 3D UNet Training')
     parser.add_argument('-c', '--config', type=str, default='config.yml', required=False,
                         help='Path to the configuration file')
     parser.add_argument('-ca', '--contrast_agent', type=evaluate_true_false, default=False, required=True, 
@@ -72,7 +70,7 @@ if __name__ == "__main__":
         with open(log_path.joinpath(config['logs']).joinpath('config.yml'), 'w') as config_file:
             yaml.dump(config, config_file)
         if args.contrast_agent:
-            model = train(config, log_path, logger)
+            model = train_contrast(config, log_path, logger)
         elif not args.contrast_agent:
             model = train_non_contrast(config, log_path, logger)
     else:

@@ -17,8 +17,6 @@ from utils import *
 from pathlib import Path
 
 
-# from tqdm import tqdm # can be added if not running in the background
-
 def save_checkpoint(model_state_dict, 
                     optimizer_seg_state_dict, 
                     save_path=None):
@@ -40,7 +38,7 @@ def save_checkpoint(model_state_dict,
     
 def key_error_raiser(ex): raise Exception(ex)
 
-def train(config, log_path, logger):
+def train_contrast(config, log_path, logger):
 
     cases = [f for f in Path(config['data_dir']).glob('*')]
     image_files = sorted([os.path.join(k, f) for k in cases for f in k.glob('*') if f.is_dir()])
