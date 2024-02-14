@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import torch
 import torch.nn.functional as F
-from monai.transforms import MapTransform, InvertibleTransform, Resize
+from monai.transforms import MapTransform, Resize
 import nibabel as nib
 import open3d as o3d
 
@@ -49,8 +49,6 @@ class WindowindContrastCTd(MapTransform):
         # windowing should be based on the energy level
         d['image'][ d['image'] < -100 ] = -100
         d['image'][ d['image'] > 500 ] = 500
-        # d['image'][ d['image'] < -100 ] = -100
-        # d['image'][ d['image'] > 400 ] = 400
         d['image'] = (d['image'] - np.amin(d['image']))/np.ptp(d['image'])
         d['image_shape'] = d['image'][0].shape
 
@@ -64,8 +62,8 @@ class WindowindNonContrastCTd(MapTransform):
     def __call__(self, data):
         d = dict(data)
         # windowing should be based on the energy level
-        d['image'][ d['image'] < -20 ] = -20
-        d['image'][ d['image'] > 150 ] = 150
+        d['image'][ d['image'] < -105 ] = -105
+        d['image'][ d['image'] > 230 ] = 230
         d['image'] = (d['image'] - np.amin(d['image']))/np.ptp(d['image'])
         d['image_shape'] = d['image'][0].shape
 
@@ -98,13 +96,6 @@ class IndexTracker:
         self.im.set_data(self.X[:, :, self.ind])
         self.ax.set_ylabel('slice %s' % self.ind)
         self.im.axes.figure.canvas.draw()
-
-# # How to user IndexTracker
-# fig, ax = plt.subplots(1, 1)
-# X = np.transpose(ct, axes=(2,1,0)) # image to show
-# tracker = IndexTracker(ax, X, vmin=np.amin(X), vmax=np.amax(X))
-# fig.canvas.mpl_connect('scroll_event', tracker.on_scroll)
-# plt.show()
 
 def evaluate_true_false(inp):
     inp = str(inp).upper()
@@ -193,11 +184,6 @@ def read_model(model_path):
                         strides=[2, 2, 2, 2], norm='instance', dropout=.3, num_res_units=2)
     model_dict = saved_model['model_state_dict']
 
-    # # 1-channel input
-    # model = UNet(spatial_dims=3, in_channels=1, out_channels=3, kernel_size=3, up_kernel_size=3, channels=[32, 64, 128, 256, 512],
-    #                     strides=[2, 2, 2, 2], norm='instance', dropout=.3, num_res_units=3)
-    # model_dict = saved_model['model_state_dict']
-
     new_dict = {}
     for k,v in model_dict.items():
         if str(k).startswith('module'): # module will be there in case of training in multiple GPUs
@@ -265,12 +251,6 @@ def confusion(prediction, truth):
     truth = torch.from_numpy(truth.astype(np.float16))
 
     confusion_vector = prediction / truth
-    # Element-wise division of the 2 tensors returns a new tensor which holds a
-    # unique value for each case:
-    #   1     where prediction and truth are 1 (True Positive)
-    #   inf   where prediction is 1 and truth is 0 (False Positive)
-    #   nan   where prediction and truth are 0 (True Negative)
-    #   0     where prediction is 0 and truth is 1 (False Negative)
 
     true_positives = torch.sum(confusion_vector == 1).item()
     false_positives = torch.sum(confusion_vector == float('inf')).item()
